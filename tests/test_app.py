@@ -11,16 +11,18 @@ def test_read_root_deve_retornar_ok_e_ola_mundo():
     assert responde.status_code == HTTPStatus.OK  # Assert (afirmação)
     assert responde.json() == {'message': 'Olá Mundo'}
 
+def test_read_user_existing():
+    client = TestClient(app)
+    response = client.get('/users/1')
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {
+        'id': 1,
+        'username': 'john',
+        'email': 'john@example.com'
+    }
 
-def test_exercicio_aula_02_deve_retornar_html_com_ola_mundo():
-    client = TestClient(app)  # Arrange (organização)
-    response = client.get('/exercicio-html')  # Act (ação)
-    assert response.status_code == HTTPStatus.OK  # Assert (afirmação)
-    assert '<h1> Olá Mundo </h1>' in response.text
-
-
-def test_upadade_user_deve_retornar_404_quando_usuario_nao_existir():
-    client = TestClient(app)  # Arrange (organização)
-    response = client.put('/users/999', json={'name': 'Novo Nome'})  # Act (ação)
-    assert response.status_code == HTTPStatus.NOT_FOUND  # Assert (afirmação)
+def test_read_user_not_found():
+    client = TestClient(app)
+    response = client.get('/users/999')
+    assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'User not found'}

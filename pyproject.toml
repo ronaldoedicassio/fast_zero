@@ -18,7 +18,7 @@ httpx = "^0.28.1"
 coverage = "^7.10.7"
 
 [tool.ruff]
-line-length = 79
+line-length = 89
 extend-exclude = ['migrations']
 
 [tool.ruff.lint]

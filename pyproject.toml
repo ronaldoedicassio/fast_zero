@@ -22,7 +22,7 @@ coverage = "^7.10.7"
 harlequin = "^2.1.3"
 
 [tool.ruff]
-line-length = 89
+line-length = 150
 extend-exclude = ['migrations']
 
 [tool.ruff.lint]

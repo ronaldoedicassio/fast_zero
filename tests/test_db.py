@@ -5,11 +5,9 @@ from sqlalchemy import select
 from fast_zero.models import User
 
 
-def test_create_user(session, mock_db_time):
+def test_create_user_db(session, mock_db_time):
     with mock_db_time(model=User) as time:  # Inicia o gerenciador de contexto mock_db_time usando o modelo User como base.
-        new_user = User(
-            username='alice', password='secret', email='teste@test'
-        )
+        new_user = User(username='alice', password='secret', email='teste@test')
         session.add(new_user)
         session.commit()
 

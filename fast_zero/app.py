@@ -1,6 +1,7 @@
 from http import HTTPStatus
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 
 # Importações para SQLAlchemy
 from sqlalchemy import select
@@ -9,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from fast_zero.database import get_session
 from fast_zero.models import User
-from fast_zero.schemas import Message, UserList, UserPublic, UserSchema
+from fast_zero.schemas import Message, Token, UserList, UserPublic, UserSchema
+from fast_zero.security import create_access_token, get_current_user, get_password_hash, verify_password
 
 app = FastAPI()
 
@@ -41,7 +43,8 @@ def create_user(
     if db_user:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail='Username or email already exists')
 
-    db_user = User(username=user.username, password=user.password, email=user.email)  # Cria um novo objeto User com os dados fornecidos.
+    db_user = User(username=user.username, password=get_password_hash(user.password), email=user.email)
+    # Cria um novo objeto User com os dados fornecidos.
 
     session.add(db_user)  # Adiciona o objeto User à sessão de banco de dados.
     session.commit()  # Salva as alterações no banco de dados.
@@ -55,6 +58,8 @@ def read_users(
     limit: int = 10,
     offset: int = 0,  # paginação para limitar a quantidade de registros retornados e pular os primeiros registros
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    # Usando dependência para obter o usuário atual autenticado. tem que ter um usuário autenticado para acessar esse endpoint
 ):  # Usando dependência para obter a sessão de banco de dados.
     users = session.scalars(select(User).limit(limit).offset(offset))
     # Usa a sessão de banco de dados para selecionar todos os usuários.
@@ -66,7 +71,81 @@ def read_users(
 
 @app.put('/users/{user_id}', response_model=UserPublic)
 # Atualiza um usuário existente com base no ID fornecido. Retorna o usuário atualizado.
+def update_user(user_id: int, user: UserSchema, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    # Agora com o current_user não sera preciso comparar o usuário, pois a propria funçao ja faz essa validação
+    # Usando dependência para obter a sessão de banco de dados.
+    # user_id é o ID do usuário a ser atualizado.
+    # user é o objeto UserSchema com os dados atualizados.
+    # session é a sessão de banco de dados pela injeção de dependência.
+    if current_user.id != user_id:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail='Not enough permission')
+
+    try:
+        current_user.username = user.username
+        current_user.email = user.email
+        current_user.password = get_password_hash(user.password)
+        # Atualiza os campos do usuário com os dados fornecidos, incluindo o hash da nova senha.
+
+        session.add(current_user)
+        session.commit()
+        session.refresh(current_user)
+
+        return current_user
+
+    except IntegrityError:
+        raise HTTPException(status_code=HTTPStatus.CONFLICT, detail='Username or email already exists')
+
+
+@app.delete('/users/{user_id}', response_model=Message)
+def delete_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    # passando o currente user, não sera mais necessário buscar o usuario no bano
+    # user_db = session.scalar(select(User).where(User.id == user_id))
+
+    # if not user_db:
+    #    raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='User not found')
+    if current_user.id != user_id:
+        raise HTTPException(status_code=HTTPStatus.FORBIDDEN, detail='Not enough permission')
+
+    session.delete(current_user)
+    session.commit()
+
+    return {'message': 'User deleted successfully'}
+
+
+@app.post('/token', response_model=Token)
+# Endpoint para autenticação e geração de token de acesso. Retorna o token de acesso. no modelo de resposta Token
+def login_for_acess_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    # OAuth2PasswordRequestForm => Formulário de dados enviado pelo cliente para autenticação.
+    # Ele espera receber os campos username e password no corpo da requisição.
+    user = session.scalar(select(User).where(User.email == form_data.username))
+    # Busca o usuário no banco de dados com base no email fornecido no formulário.
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Incorrect username or password',
+        )
+    # caso envie um token diferente do JWT
+    if not verify_password(form_data.password, user.password):
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Incorrect username or password',
+        )
+    access_token = create_access_token(data={'sub': user.email})
+    # Cria um token de acesso JWT com o email do usuário como assunto (sub).
+    return {'access_token': access_token, 'token_type': 'Bearer'}
+
+
+# ***** CODIGO COMENTADO PARA NÃO PERDER HISTÓRICO DE EVOLUCAO *****
+
+""" @app.put('/users/{user_id}', response_model=UserPublic)
+# Atualiza um usuário existente com base no ID fornecido. Retorna o usuário atualizado.
+
 def update_user(user_id: int, user: UserSchema, session: Session = Depends(get_session)):
+    Funcão atualiza sem current_user
     # Usando dependência para obter a sessão de banco de dados.
     # user_id é o ID do usuário a ser atualizado.
     # user é o objeto UserSchema com os dados atualizados.
@@ -79,7 +158,8 @@ def update_user(user_id: int, user: UserSchema, session: Session = Depends(get_s
     try:
         user_db.username = user.username
         user_db.email = user.email
-        user_db.password = user.password
+        user_db.password = get_password_hash(user.password)
+        # Atualiza os campos do usuário com os dados fornecidos, incluindo o hash da nova senha.
 
         session.add(user_db)
         session.commit()
@@ -90,22 +170,7 @@ def update_user(user_id: int, user: UserSchema, session: Session = Depends(get_s
     except IntegrityError:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail='Username or email already exists')
 
-
-@app.delete('/users/{user_id}', response_model=Message)
-def delete_user(user_id: int, session: Session = Depends(get_session)):
-    user_db = session.scalar(select(User).where(User.id == user_id))
-
-    if not user_db:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='User not found')
-
-    session.delete(user_db)
-    session.commit()
-
-    return {'message': 'User deleted successfully'}
-
-
-# ***** CODIGO COMENTADO PARA NÃO PERDER HISTÓRICO DE EVOLUCAO *****
-""" @app.get('/users/', response_model=UserList)
+    @app.get('/users/', response_model=UserList)
     def read_users(skip: int = 0, limit: int = 100, session: Session = Depends(get_session)):
         # Usando dependência para obter a sessão de banco de dados.
         users = session.scalars(select(User).offset(skip).limit(limit)).all()

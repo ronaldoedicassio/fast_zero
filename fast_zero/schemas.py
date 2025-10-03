@@ -16,6 +16,8 @@ class UserPublic(BaseModel):
     username: str
     email: EmailStr
     model_config = ConfigDict(from_attributes=True)
+    # mode_config recebe a configuração adicional com ConfigDict
+    # from_attributes=True => Permite que o Pydantic crie o modelo a partir de atributos de um objeto, como um modelo ORM.
 
 
 class UserDB(UserSchema):
@@ -24,3 +26,8 @@ class UserDB(UserSchema):
 
 class UserList(BaseModel):
     users: list[UserPublic]
+
+
+class Token(BaseModel):
+    token_type: str
+    access_token: str

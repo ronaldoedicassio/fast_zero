@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from fast_zero.app import app
 from fast_zero.database import get_session
 from fast_zero.models import User, table_registry
+from fast_zero.security import get_password_hash
 
 
 @pytest.fixture  # Fixture do pytest que cria um cliente de teste para a aplicação FastAPI.
@@ -88,10 +89,53 @@ def mock_db_time():
 
 @pytest.fixture
 def user(session):
-    user = User(username='Teste', email='teste@test.com', password='testtest')
+    password = 'testtest'
+
+    user = User(username='Teste', email='teste@test.com', password=get_password_hash('testtest'))
+    # password=get_password_hash('testtest')) -> Precisa gerar a hash(encriptografia) da senha para não dar o erro:
+    # This hash can't be identified. Make sure it's valid and that its corresponding hasher is enabled.
     # Adiciona um usuário de teste ao banco de dados em memória.
     session.add(user)
     session.commit()
     session.refresh(user)
 
+    user.clean_password = password
+    # Adiciona o atributo clean_password ao objeto user para facilitar os testes.
+    # ou seja, retorna a senha limpa (em texto simples) em variável separada do hash da senha no momento da execução,
+    # mas não armazena no banco de dados.
+
+    return user
+
+
+@pytest.fixture
+def token(client, user):
+    response = client.post(
+        '/token',
+        data={
+            'username': user.email,
+            'password': user.clean_password,
+            # user.clean_password => senha em texto simples do usuário de teste criada no fixture user.
+            # somente para teste, não deve ser armazenada no banco de dados.
+        },
+    )
+    return response.json()['access_token']
+
+
+@pytest.fixture
+def user_with_password(session):
+    # senha correta que será salva (em hash)
+    raw_password = 'senha_correta'
+
+    user = User(
+        username='Teste',
+        email='teste@test.com',
+        password=get_password_hash(raw_password),
+    )
+
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    # guardo a senha pura para usar no teste
+    user.clean_password = raw_password
     return user

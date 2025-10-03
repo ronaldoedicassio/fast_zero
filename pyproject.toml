@@ -6,11 +6,13 @@ authors = ["RonaldoSiqueira <ronaldo.edicassio@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.13,<4.0"
+python = ">=3.13,<3.14.0"
 fastapi = {extras = ["standard"], version = "^0.117.1"}
 sqlalchemy = "^2.0.43"
 pydantic-settings = "^2.11.0"
 alembic = "^1.16.5"
+pwdlib = {extras = ["argon2"], version = "^0.2.1"}
+pyjwt = "^2.10.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 from jwt import decode
 
-from fast_zero.security import SECRET_KEY, create_access_token
+from fast_zero.security import create_access_token, settings
 
 
 def test_jwt():
@@ -10,7 +10,7 @@ def test_jwt():
 
     token = create_access_token(data)
 
-    decoded = decode(token, SECRET_KEY, algorithms=['HS256'])
+    decoded = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     # Decodifica o token JWT usando a chave secreta e o algoritmo especificado.
     assert decoded['test'] == data['test']
     # Verifica se o valor decodificado corresponde ao valor original.
@@ -49,7 +49,7 @@ def test_get_current_user_does_not_exists__exercicio(client):
 
 def test_get_current_user_wrong_username(client, token):
     response = client.post(
-        '/token',
+        '/auth/token',
         headers={'Authorization': f'Bearer {token}'},
         data={
             'username': 'Teste',
@@ -63,7 +63,7 @@ def test_get_current_user_wrong_username(client, token):
 def test_login_wrong_password(client, user_with_password):
     # tentativa de login com senha errada
     response = client.post(
-        '/token',  # essa é a rota definida no teu @app.post('/token')
+        '/auth/token',  # essa é a rota definida no teu @app.post('/token')
         data={
             'username': user_with_password.email,  # atenção: teu código usa email aqui!
             'password': 'senha_errada',  # senha incorreta

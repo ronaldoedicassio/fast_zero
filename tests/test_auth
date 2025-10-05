@@ -1,0 +1,22 @@
+from http import HTTPStatus
+
+
+def test_get_token(client, user):
+    response = client.post(
+        '/auth/token',
+        data={
+            'username': user.email,
+            'password': user.clean_password,
+            # user.clean_password => senha em texto simples do usuário de teste criada no fixture user.
+            # somente para teste, não deve ser armazenada no banco de dados.
+        },
+    )
+
+    token = response.json()
+
+    assert response.status_code == HTTPStatus.OK
+    assert 'access_token' in token
+    # checar se o token de acesso está presente na resposta e não o valor do token
+    assert 'token_type' in token
+    # se o tipo do token é Bearer
+

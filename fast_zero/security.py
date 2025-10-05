@@ -11,13 +11,11 @@ from sqlalchemy.orm import Session
 
 from fast_zero.database import get_session
 from fast_zero.models import User
-
-SECRET_KEY = 'your-secret-key'
-ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+from fast_zero.settings import Settings
 
 pwd_context = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+settings = Settings()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
 
 
 def get_password_hash(password: str):
@@ -33,11 +31,11 @@ def create_access_token(data: dict):
     # Função para criar um token de acesso JWT.
     to_encode = data.copy()
     # Copia os dados fornecidos para evitar modificar o original.
-    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     # Calcula o tempo de expiração do token.
     to_encode.update({'exp': expire})
     # Adiciona o tempo de expiração aos dados a serem codificados.
-    encoded_jwt = encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     # Codifica os dados em um token JWT usando a chave secreta e o algoritmo especificado.
     return encoded_jwt
     # Retorna o token JWT gerado.
@@ -54,7 +52,7 @@ def get_current_user(
     # Usa dependência para obter a sessão de banco de dados e o token OAuth2.
     # headers={'WWW-Authenticate': 'Bearer'} => informa ao cliente que ele deve usar o esquema de autenticação Bearer.
     try:
-        payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         # Decodifica o token JWT usando a chave secreta e o algoritmo especificado enviado.
         # Se o token for inválido ou expirado, uma exceção DecodeError será levantada.
         subject_email = payload.get('sub')

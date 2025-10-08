@@ -35,7 +35,6 @@ def create_user(user: UserSchema, session: Session):
         select(User).where((User.username == user.username) | (User.email == user.email))
     )  # Seleciona o usuário do banco de dados com o ID fornecido.
     # o Scalar vai retornar o primeiro resultado ou None ou se encontrou um resultado, somente um resultado, se for mais de um serai scalars
-
     if db_user:
         raise HTTPException(status_code=HTTPStatus.CONFLICT, detail='Username or email already exists')
 
